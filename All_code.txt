@@ -1,0 +1,2694 @@
+// ===== ./src/utility/CommandSerializer.java =====
+package utility;
+
+import java.io.*;
+
+/**@author Rianexi
+Утилита для сериализации и десериализации объектов
+ */
+public class CommandSerializer {
+    public static byte[] serialize(Object obj) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(obj);
+            return baos.toByteArray();
+        }
+    }
+
+    public static Object deserialize(byte[] data) throws IOException, ClassNotFoundException {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+             ObjectInputStream ois = new ObjectInputStream(bais)) {
+            return ois.readObject();
+        }
+    }
+}// ===== ./src/utility/Console.java =====
+package utility;
+
+import models.User;
+import models.Worker;
+
+/**@author Rianexi
+Интерфейс для взаимодействия с пользователем
+ */
+public interface Console {
+    void print(String text);
+    void println(String text);
+    String readln();
+    Worker readWorker(int id, User user);
+}// ===== ./src/utility/ExecutionResponse.java =====
+package utility;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Результат выполнения команды
+ */
+public class ExecutionResponse implements Serializable {
+    private final boolean success;
+    private final String message;
+
+    /**Конструктор для создания результата выполнения команды
+     @param success Успешность выполнения команды
+     @param message Сообщение с результатом выполнения
+     */
+    public ExecutionResponse(boolean success, String message) {
+        this.success = success;
+        this.message = message;
+    }
+
+    /**Проверяет, успешно ли выполнена команда
+     @return true, если команда выполнена успешно, иначе false
+     */
+    public boolean isSuccess() { return success; }
+
+    /**Возвращает сообщение результата выполнения команды
+     @return Сообщение результата
+     */
+    public String getMessage() { return message; }
+}// ===== ./src/utility/StandardConsole.java =====
+package utility;
+
+import models.*;
+import java.util.Scanner;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+/**@author Rianexi
+Стандартная консоль для взаимодействия с пользователем
+ */
+public class StandardConsole implements Console {
+    private final Scanner scanner;
+
+    public StandardConsole() {
+        this.scanner = new Scanner(System.in);
+    }
+
+    @Override
+    public void print(String text) {
+        System.out.print(text);
+    }
+
+    @Override
+    public void println(String text) {
+        System.out.println(text);
+    }
+
+    @Override
+    public String readln() {
+        return scanner.nextLine();
+    }
+
+    @Override
+    public Worker readWorker(int id, User user) {
+        String name = readString("Введите имя: ", false);
+        float coordX = readFloat("Введите X координаты (float > -817): ", -817);
+        long coordY = readLong("Введите Y координаты (long > -166): ", -166);
+        Date creationDate = readDate("Введите дату создания (YYYY-MM-DD): ");
+        int salary = readInt("Введите зарплату (int > 0): ", 0);
+        Position position = readPosition("Введите должность (MANAGER, HEAD_OF_DEPARTMENT, POSITIONER): ");
+        Status status = readStatus("Введите статус (HIRED, FIRED, RECOMMENDED_FOR_PROMOTION, REGULAR, PROBATION): ");
+        Person person = readPerson();
+
+        Worker worker = new Worker(id, name, new Coordinates(coordX, coordY), creationDate, salary, position, status, person, user);
+        worker.setOwner(user);
+        return worker;
+    }
+
+    private String readString(String prompt, boolean canBeEmpty) {
+        while (true) {
+            print(prompt);
+            String input = scanner.nextLine().trim();
+            if (!input.isEmpty() || canBeEmpty) {
+                return input;
+            }
+            println("Ошибка: ввод не может быть пустым. Попробуйте снова.");
+        }
+    }
+
+    private float readFloat(String prompt, float minValue) {
+        while (true) {
+            try {
+                print(prompt);
+                String input = readln().trim();
+                if (input.isEmpty()) {
+                    println("Значение не может быть пустым. Попробуйте снова.");
+                    continue;
+                }
+                float value = Float.parseFloat(input);
+                if (value > minValue) {
+                    return value;
+                }
+                println("Значение должно быть больше " + minValue + ". Попробуйте снова.");
+            } catch (NumberFormatException e) {
+                println("Введите корректное число. Попробуйте снова.");
+            }
+        }
+    }
+
+    private long readLong(String prompt, long minValue) {
+        while (true) {
+            try {
+                print(prompt);
+                String input = readln().trim();
+                if (input.isEmpty()) {
+                    println("Значение не может быть пустым. Попробуйте снова.");
+                    continue;
+                }
+                long value = Long.parseLong(input);
+                if (value > minValue) {
+                    return value;
+                }
+                println("Значение должно быть больше " + minValue + ". Попробуйте снова.");
+            } catch (NumberFormatException e) {
+                println("Введите корректное число. Попробуйте снова.");
+            }
+        }
+    }
+
+    private int readInt(String prompt, int minValue) {
+        while (true) {
+            try {
+                print(prompt);
+                String input = readln().trim();
+                if (input.isEmpty()) {
+                    println("Значение не может быть пустым. Попробуйте снова.");
+                    continue;
+                }
+                int value = Integer.parseInt(input);
+                if (value > minValue) {
+                    return value;
+                }
+                println("Значение должно быть больше " + minValue + ". Попробуйте снова.");
+            } catch (NumberFormatException e) {
+                println("Введите корректное число. Попробуйте снова.");
+            }
+        }
+    }
+
+    private Date readDate(String prompt) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        while (true) {
+            try {
+                print(prompt);
+                String input = readln().trim();
+                if (input.isEmpty()) {
+                    println("Дата не может быть пустой. Попробуйте снова.");
+                    continue;
+                }
+                return dateFormat.parse(input);
+            } catch (ParseException e) {
+                println("Введите дату в формате YYYY-MM-DD. Попробуйте снова.");
+            }
+        }
+    }
+
+    private Position readPosition(String prompt) {
+        while (true) {
+            try {
+                print(prompt);
+                String input = readln().trim().toUpperCase();
+                if (input.isEmpty()) {
+                    println("Должность не может быть пустой. Попробуйте снова.");
+                    continue;
+                }
+                return Position.valueOf(input);
+            } catch (IllegalArgumentException e) {
+                println("Введите одно из значений: MANAGER, HEAD_OF_DEPARTMENT, POSITIONER. Попробуйте снова.");
+            }
+        }
+    }
+
+    private Status readStatus(String prompt) {
+        while (true) {
+            try {
+                print(prompt);
+                String input = readln().trim().toUpperCase();
+                if (input.isEmpty()) {
+                    println("Статус не может быть пустым. Попробуйте снова.");
+                    continue;
+                }
+                return Status.valueOf(input);
+            } catch (IllegalArgumentException e) {
+                println("Введите одно из значений: HIRED, FIRED, RECOMMENDED_FOR_PROMOTION, REGULAR, PROBATION. Попробуйте снова.");
+            }
+        }
+    }
+
+    private Person readPerson() {
+        float weight = 0;
+        boolean hasWeight = false;
+        
+        while (!hasWeight) {
+            print("Введите вес личности (float > 0, может быть пустым): ");
+            String weightInput = readln().trim();
+            if (weightInput.isEmpty()) {
+                return null;
+            }
+            try {
+                weight = Float.parseFloat(weightInput);
+                if (weight > 0) {
+                    hasWeight = true;
+                } else {
+                    println("Вес должен быть больше 0. Попробуйте снова.");
+                }
+            } catch (NumberFormatException e) {
+                println("Введите корректное число. Попробуйте снова.");
+            }
+        }
+
+        String passportID = readString("Введите номер паспорта (может быть пустым): ", true);
+        Color hairColor = readColor("Введите цвет волос (GREEN, RED, BLACK, BLUE, YELLOW, может быть пустым): ");
+        Country nationality = readCountry("Введите национальность (SPAIN, CHINA, INDIA, THAILAND): ");
+
+        return new Person(weight, passportID, hairColor, nationality);
+    }
+
+    private Color readColor(String prompt) {
+        while (true) {
+            print(prompt);
+            String input = readln().trim();
+            if (input.isEmpty()) {
+                return null;
+            }
+            try {
+                return Color.valueOf(input.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                println("Введите одно из значений: GREEN, RED, BLACK, BLUE, YELLOW. Попробуйте снова.");
+            }
+        }
+    }
+
+    private Country readCountry(String prompt) {
+        while (true) {
+            try {
+                print(prompt);
+                String input = readln().trim().toUpperCase();
+                if (input.isEmpty()) {
+                    println("Национальность не может быть пустой. Попробуйте снова.");
+                    continue;
+                }
+                return Country.valueOf(input);
+            } catch (IllegalArgumentException e) {
+                println("Введите одно из значений: SPAIN, CHINA, INDIA, THAILAND. Попробуйте снова.");
+            }
+        }
+    }
+}// ===== ./src/utility/PasswordHasher.java =====
+package utility;
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+/**@author Rianexi
+Утилита для хэширования паролей
+ */
+public class PasswordHasher {
+    /**Хэширует пароль с использованием алгоритма MD2
+     @param password Пароль для хэширования
+     @return Хэшированная строка
+     */
+    public static String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD2");
+            byte[] bytes = md.digest(password.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Ошибка хэширования пароля: " + e.getMessage(), e);
+        }
+    }
+}// ===== ./src/managers/CommandManager.java =====
+package managers;
+
+import commands.*;
+import models.User;
+import utility.Console;
+import utility.ExecutionResponse;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**@author Rianexi
+Менеджер команд для обработки пользовательского ввода
+ */
+public class CommandManager {
+    private final Map<String, Command> commands = new HashMap<>();
+    private final Console console;
+    private User currentUser;
+
+    /**Конструктор для инициализации менеджера команд
+     @param collectionManager Менеджер коллекции для выполнения команд
+     @param console Консоль для взаимодействия с пользователем
+     @param userManager Менеджер пользователей
+     */
+    public CommandManager(CollectionManager collectionManager, Console console, UserManager userManager) {
+        this.console = console;
+        commands.put("help", new Help(console, this));
+        commands.put("info", new Info(console, collectionManager));
+        commands.put("show", new Show(console, collectionManager));
+        commands.put("add", new Add(console, collectionManager));
+        commands.put("update", new Update(console, collectionManager));
+        commands.put("remove_by_id", new RemoveById(console, collectionManager));
+        commands.put("clear", new Clear(console, collectionManager));
+        commands.put("execute_script", new ExecuteScript(console, this));
+        commands.put("exit", new Exit(console));
+        commands.put("insert_at", new InsertAt(console, collectionManager));
+        commands.put("add_if_max", new AddIfMax(console, collectionManager));
+        commands.put("reorder", new Reorder(console, collectionManager));
+        commands.put("remove_all_by_salary", new RemoveAllBySalary(console, collectionManager));
+        commands.put("filter_contains_name", new FilterContainsName(console, collectionManager));
+        commands.put("filter_less_than_person", new FilterLessThanPerson(console, collectionManager));
+        commands.put("login", new Login(console, userManager));
+        commands.put("register", new Register(console, userManager));
+    }
+
+    /**Выполняет команду по строковому вводу пользователя
+     @param commandLine Введенная пользователем строка команды
+     @param user Пользователь, выполняющий команду
+     @return Результат выполнения команды
+     */
+    public ExecutionResponse execute(String commandLine, User user) {
+        String[] parts = commandLine.trim().split("\\s+", 2);
+        String commandName = parts[0];
+        String[] args = parts.length > 1 ? parts[1].split("\\s+") : new String[0];
+
+        if (!commandName.equals("login") && !commandName.equals("register") && user == null) {
+            return new ExecutionResponse(false, "Требуется авторизация для выполнения команды");
+        }
+        this.currentUser = user;
+
+        Command command = commands.get(commandName);
+        if (command == null) return new ExecutionResponse(false, "Команда '" + commandName + "' не найдена");
+        return command.apply(args);
+    }
+
+    /**Возвращает текущего пользователя
+     @return Текущий пользователь
+     */
+    public User getCurrentUser() {
+        return currentUser;
+    }
+
+    /**Возвращает карту доступных команд
+     @return Карта команд
+     */
+    public Map<String, Command> getCommands() { return commands; }
+}// ===== ./src/managers/UserManager.java =====
+package managers;
+
+import models.User;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.logging.Logger;
+
+public class UserManager {
+    private static final Logger logger = Logger.getLogger(UserManager.class.getName());
+    private final DatabaseManager databaseManager;
+
+    public UserManager(DatabaseManager databaseManager) {
+        this.databaseManager = databaseManager;
+    }
+
+    public User registerUser(String login, String password) {
+        try {
+            String passwordHash = hashPassword(password);
+            return databaseManager.registerUser(login, passwordHash);
+        } catch (Exception e) {
+            logger.severe("Ошибка регистрации: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public User loginUser(String login, String password) {
+        try {
+            String passwordHash = hashPassword(password);
+            return databaseManager.loginUser(login, passwordHash);
+        } catch (Exception e) {
+            logger.severe("Ошибка авторизации: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String hashPassword(String password) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] hashedBytes = md.digest(password.getBytes());
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hashedBytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+}// ===== ./src/managers/DatabaseManager.java =====
+package managers;
+
+import models.*;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
+
+/**@author Rianexi
+Менеджер для работы с базой данных PostgreSQL
+ */
+public class DatabaseManager {
+    private static final Logger logger = Logger.getLogger(DatabaseManager.class.getName());
+    private static final String DB_URL = "jdbc:postgresql://localhost:5432/postgres";
+    private static final String USER = "postgres";
+    private static final String PASSWORD = "postgres"; // Измените на ваш пароль от PostgreSQL
+
+    public DatabaseManager() {
+        try {
+            // Регистрация драйвера JDBC
+            Class.forName("org.postgresql.Driver");
+            initializeDatabase();
+        } catch (ClassNotFoundException e) {
+            logger.severe("Драйвер PostgreSQL не найден: " + e.getMessage());
+            throw new RuntimeException("Не удалось загрузить драйвер PostgreSQL", e);
+        }
+    }
+
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(DB_URL, USER, PASSWORD);
+    }
+
+    private void initializeDatabase() {
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
+            // Создание таблицы users
+            String createUsersTable = """
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    login VARCHAR(255) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL
+                );
+                """;
+            stmt.executeUpdate(createUsersTable);
+
+            // Создание таблицы workers
+            String createWorkersTable = """
+                CREATE TABLE IF NOT EXISTS workers (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    coord_x FLOAT NOT NULL,
+                    coord_y BIGINT NOT NULL,
+                    creation_date TIMESTAMP NOT NULL,
+                    salary INTEGER NOT NULL CHECK (salary > 0),
+                    position VARCHAR(50) CHECK (position IN ('MANAGER', 'HEAD_OF_DEPARTMENT', 'POSITIONER')),
+                    status VARCHAR(50) CHECK (status IN ('HIRED', 'FIRED', 'RECOMMENDED_FOR_PROMOTION', 'REGULAR', 'PROBATION')),
+                    person_weight FLOAT CHECK (person_weight > 0),
+                    person_passport_id VARCHAR(255),
+                    person_hair_color VARCHAR(50) CHECK (person_hair_color IN ('GREEN', 'RED', 'BLACK', 'BLUE', 'YELLOW')),
+                    person_nationality VARCHAR(50) CHECK (person_nationality IN ('RUSSIA', 'FRANCE', 'SPAIN', 'CHINA', 'NORTH_KOREA')),
+                    owner_id INTEGER NOT NULL REFERENCES users(id)
+                );
+                """;
+            stmt.executeUpdate(createWorkersTable);
+
+            // Проверка существования таблиц
+            ResultSet rs = stmt.executeQuery("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'workers')");
+            if (rs.next() && !rs.getBoolean(1)) {
+                logger.severe("Таблица workers не существует после попытки создания!");
+            }
+
+            logger.info("База данных инициализирована успешно: таблицы users и workers готовы");
+        } catch (SQLException e) {
+            logger.severe("Ошибка инициализации базы данных: " + e.getMessage());
+            throw new RuntimeException("Не удалось инициализировать базу данных", e);
+        }
+    }
+
+    public User registerUser(String login, String passwordHash) {
+        try {
+            String sql = "INSERT INTO users (login, password_hash) VALUES (?, ?) RETURNING id";
+            try (PreparedStatement stmt = getConnection().prepareStatement(sql)) {
+                stmt.setString(1, login);
+                stmt.setString(2, passwordHash);
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    int id = rs.getInt(1);
+                    return new User(id, login, passwordHash);
+                }
+            }
+        } catch (SQLException e) {
+            logger.severe("Ошибка регистрации пользователя: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public User loginUser(String login, String passwordHash) throws SQLException {
+        String sql = "SELECT id, login, password_hash FROM users WHERE login = ? AND password_hash = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, login);
+            stmt.setString(2, passwordHash);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                logger.info("Пользователь " + login + " успешно авторизован, ID: " + rs.getInt("id"));
+                return new User(rs.getInt("id"), rs.getString("login"), rs.getString("password_hash")); // Строка 103
+            }
+            logger.warning("Не удалось авторизовать пользователя " + login + ": неверный логин или пароль");
+            return null;
+        } catch (SQLException e) {
+            logger.severe("Ошибка авторизации пользователя " + login + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public boolean addWorker(Worker worker) throws SQLException {
+        String sql = """
+            INSERT INTO workers (name, coord_x, coord_y, creation_date, salary, position, status,
+                                person_weight, person_passport_id, person_hair_color, person_nationality, owner_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+            """;
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            conn.setAutoCommit(true);
+            try {
+                // Проверка существования пользователя
+                try (PreparedStatement checkUser = conn.prepareStatement("SELECT id FROM users WHERE id = ?")) {
+                    checkUser.setInt(1, worker.getOwner().getId());
+                    ResultSet userRs = checkUser.executeQuery();
+                    if (!userRs.next()) {
+                        logger.severe("Пользователь с ID " + worker.getOwner().getId() + " не существует!");
+                        return false;
+                    }
+                }
+
+                stmt.setString(1, worker.getName());
+                stmt.setFloat(2, worker.getCoordinates().getX());
+                stmt.setLong(3, worker.getCoordinates().getY());
+                stmt.setTimestamp(4, new Timestamp(worker.getCreationDate().getTime()));
+                stmt.setInt(5, worker.getSalary());
+                stmt.setString(6, worker.getPosition() != null ? worker.getPosition().name() : null);
+                stmt.setString(7, worker.getStatus() != null ? worker.getStatus().name() : null);
+                if (worker.getPerson() != null) {
+                    stmt.setFloat(8, worker.getPerson().getWeight());
+                    stmt.setString(9, worker.getPerson().getPassportID());
+                    stmt.setString(10, worker.getPerson().getHairColor() != null ? worker.getPerson().getHairColor().name() : null);
+                    stmt.setString(11, worker.getPerson().getNationality() != null ? worker.getPerson().getNationality().name() : null);
+                } else {
+                    stmt.setNull(8, Types.FLOAT);
+                    stmt.setNull(9, Types.VARCHAR);
+                    stmt.setNull(10, Types.VARCHAR);
+                    stmt.setNull(11, Types.VARCHAR);
+                }
+                stmt.setInt(12, worker.getOwner().getId());
+                
+                logger.info("Попытка добавления работника: " + worker);
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    int id = rs.getInt(1);
+                    worker.setId(id);
+                    logger.info("Работник с ID " + id + " добавлен в базу");
+                    return true;
+                }
+                logger.warning("Не удалось получить ID после вставки работника");
+                return false;
+            } catch (SQLException e) {
+                logger.severe("Ошибка при установке параметров запроса: " + e.getMessage());
+                logger.severe("SQL State: " + e.getSQLState());
+                logger.severe("Error Code: " + e.getErrorCode());
+                throw e;
+            }
+        } catch (SQLException e) {
+            logger.severe("Ошибка добавления работника: " + e.getMessage());
+            logger.severe("SQL State: " + e.getSQLState());
+            logger.severe("Error Code: " + e.getErrorCode());
+            throw e;
+        }
+    }
+
+    public boolean removeById(int id, User user) throws SQLException {
+        String sql = "DELETE FROM workers WHERE id = ? AND owner_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            conn.setAutoCommit(true);
+            stmt.setInt(1, id);
+            stmt.setInt(2, user.getId());
+            int rowsAffected = stmt.executeUpdate();
+            boolean success = rowsAffected > 0;
+            if (success) {
+                logger.info("Работник с ID " + id + " удален пользователем " + user.getLogin());
+            }
+            return success;
+        } catch (SQLException e) {
+            logger.severe("Ошибка удаления работника с ID " + id + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public List<Worker> loadWorkers() throws SQLException {
+        List<Worker> workers = new ArrayList<>();
+        String sql = """
+            SELECT w.*, u.id AS user_id, u.login, u.password_hash
+            FROM workers w
+            JOIN users u ON w.owner_id = u.id
+            """;
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                User owner = new User(rs.getInt("user_id"), rs.getString("login"), rs.getString("password_hash"));
+                Coordinates coordinates = new Coordinates(rs.getFloat("coord_x"), rs.getLong("coord_y"));
+                Position position = rs.getString("position") != null ? Position.valueOf(rs.getString("position")) : null;
+                Status status = rs.getString("status") != null ? Status.valueOf(rs.getString("status")) : null;
+                Person person = null;
+                if (rs.getObject("person_weight") != null) {
+                    Color hairColor = rs.getString("person_hair_color") != null ? Color.valueOf(rs.getString("person_hair_color")) : null;
+                    Country nationality = rs.getString("person_nationality") != null ? Country.valueOf(rs.getString("person_nationality")) : null;
+                    person = new Person(rs.getFloat("person_weight"), rs.getString("person_passport_id"), hairColor, nationality);
+                }
+                Worker worker = new Worker(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        coordinates,
+                        rs.getTimestamp("creation_date"),
+                        rs.getInt("salary"),
+                        position,
+                        status,
+                        person,
+                        owner
+                );
+                workers.add(worker);
+            }
+            logger.info("Загружено " + workers.size() + " работников из базы");
+            return workers;
+        } catch (SQLException e) {
+            logger.severe("Ошибка загрузки работников: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public boolean updateWorker(Worker worker, User user) throws SQLException {
+        String sql = """
+            UPDATE workers
+            SET name = ?, coord_x = ?, coord_y = ?, creation_date = ?, salary = ?,
+                position = ?, status = ?, person_weight = ?, person_passport_id = ?,
+                person_hair_color = ?, person_nationality = ?
+            WHERE id = ? AND owner_id = ?
+            """;
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            conn.setAutoCommit(true);
+            stmt.setString(1, worker.getName());
+            stmt.setFloat(2, worker.getCoordinates().getX());
+            stmt.setLong(3, worker.getCoordinates().getY());
+            stmt.setTimestamp(4, new Timestamp(worker.getCreationDate().getTime()));
+            stmt.setInt(5, worker.getSalary());
+            stmt.setString(6, worker.getPosition() != null ? worker.getPosition().name() : null);
+            stmt.setString(7, worker.getStatus() != null ? worker.getStatus().name() : null);
+            if (worker.getPerson() != null) {
+                stmt.setFloat(8, worker.getPerson().getWeight());
+                stmt.setString(9, worker.getPerson().getPassportID());
+                stmt.setString(10, worker.getPerson().getHairColor() != null ? worker.getPerson().getHairColor().name() : null);
+                stmt.setString(11, worker.getPerson().getNationality() != null ? worker.getPerson().getNationality().name() : null);
+            } else {
+                stmt.setNull(8, Types.FLOAT);
+                stmt.setNull(9, Types.VARCHAR);
+                stmt.setNull(10, Types.VARCHAR);
+                stmt.setNull(11, Types.VARCHAR);
+            }
+            stmt.setInt(12, worker.getId());
+            stmt.setInt(13, user.getId());
+            int rowsAffected = stmt.executeUpdate();
+            boolean success = rowsAffected > 0;
+            if (success) {
+                logger.info("Работник с ID " + worker.getId() + " обновлен пользователем " + user.getLogin());
+            }
+            return success;
+        } catch (SQLException e) {
+            logger.severe("Ошибка обновления работника с ID " + worker.getId() + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public boolean clearWorkers(User user) throws SQLException {
+        String sql = "DELETE FROM workers WHERE owner_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            conn.setAutoCommit(true);
+            stmt.setInt(1, user.getId());
+            int rowsAffected = stmt.executeUpdate();
+            logger.info("Удалено " + rowsAffected + " работников для пользователя " + user.getLogin());
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            logger.severe("Ошибка очистки работников для пользователя " + user.getLogin() + ": " + e.getMessage());
+            throw e;
+        }
+    }
+
+    public boolean removeBySalary(int salary, User user) throws SQLException {
+        String sql = "DELETE FROM workers WHERE salary = ? AND owner_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            conn.setAutoCommit(true);
+            stmt.setInt(1, salary);
+            stmt.setInt(2, user.getId());
+            int rowsAffected = stmt.executeUpdate();
+            boolean success = rowsAffected > 0;
+            if (success) {
+                logger.info("Удалено " + rowsAffected + " работников с зарплатой " + salary + " пользователем " + user.getLogin());
+            }
+            return success;
+        } catch (SQLException e) {
+            logger.severe("Ошибка удаления работников с зарплатой " + salary + ": " + e.getMessage());
+            throw e;
+        }
+    }
+}// ===== ./src/managers/CollectionManager.java =====
+package managers;
+
+import models.Worker;
+import models.User;
+
+import java.sql.SQLException;
+import java.util.Date;
+import java.util.LinkedList;
+
+/**
+ * @author Rianexi
+ * Менеджер коллекции работников
+ */
+public class CollectionManager {
+    private final LinkedList<Worker> collection;
+    private final Date initializationDate;
+    private final DatabaseManager databaseManager;
+
+    /**
+     * Конструктор для инициализации менеджера коллекции
+     * @param databaseManager Менеджер базы данных для загрузки и сохранения коллекции
+     */
+    public CollectionManager(DatabaseManager databaseManager) {
+        this.collection = new LinkedList<>();
+        this.initializationDate = new Date();
+        this.databaseManager = databaseManager;
+        loadCollection();
+    }
+
+    private void loadCollection() {
+        try {
+            synchronized (collection) {
+                collection.addAll(databaseManager.loadWorkers());
+            }
+        } catch (SQLException e) {
+            System.err.println("Не удалось загрузить коллекцию: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Генерирует уникальный идентификатор для нового работника
+     * @return Уникальный идентификатор (генерируется базой данных)
+     */
+    public int generateId() {
+        // ID генерируется базой данных через sequence
+        return 0; // Не используется, так как ID будет устанавливаться при добавлении в БД
+    }
+
+    /**
+     * Добавляет работника в коллекцию
+     * @param worker Работник для добавления
+     * @param user Пользователь, добавляющий работника
+     * @return true, если добавление успешно
+     */
+    public synchronized boolean add(Worker worker, User user) {
+        try {
+            worker.setOwner(user);
+            if (databaseManager.addWorker(worker)) {
+                synchronized (collection) {
+                    collection.add(worker);
+                }
+                return true;
+            }
+            return false;
+        } catch (SQLException e) {
+            System.err.println("Ошибка добавления работника: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Удаляет работника по идентификатору
+     * @param id Идентификатор работника для удаления
+     * @param user Пользователь, выполняющий удаление
+     * @return true, если удаление успешно
+     */
+    public synchronized boolean removeById(int id, User user) {
+        try {
+            if (databaseManager.removeById(id, user)) {
+                synchronized (collection) {
+                    collection.removeIf(w -> w.getId() == id && w.getOwner().getLogin().equals(user.getLogin()));
+                }
+                return true;
+            }
+            return false;
+        } catch (SQLException e) {
+            System.err.println("Ошибка удаления работника: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Очищает коллекцию для данного пользователя
+     * @param user Пользователь, очищающий коллекцию
+     * @return Количество удаленных элементов
+     */
+    public synchronized int clear(User user) {
+        try {
+            if (databaseManager.clearWorkers(user)) {
+                synchronized (collection) {
+                    int count = (int) collection.stream()
+                            .filter(w -> w.getOwner().getLogin().equals(user.getLogin()))
+                            .count();
+                    collection.removeIf(w -> w.getOwner().getLogin().equals(user.getLogin()));
+                    return count;
+                }
+            }
+            return 0;
+        } catch (SQLException e) {
+            System.err.println("Ошибка очистки коллекции: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Возвращает работника по идентификатору
+     * @param id Идентификатор работника
+     * @return Объект Worker или null, если не найден
+     */
+    public synchronized Worker getById(int id) {
+        synchronized (collection) {
+            return collection.stream().filter(w -> w.getId() == id).findFirst().orElse(null);
+        }
+    }
+
+    /**
+     * Возвращает коллекцию работников
+     * @return Список работников
+     */
+    public synchronized LinkedList<Worker> getCollection() {
+        synchronized (collection) {
+            return new LinkedList<>(collection);
+        }
+    }
+
+    /**
+     * Возвращает дату инициализации коллекции
+     * @return Дата инициализации
+     */
+    public Date getInitializationDate() {
+        return initializationDate;
+    }
+
+    /**
+     * Обновляет работника
+     * @param worker Работник для обновления
+     * @param user Пользователь, выполняющий обновление
+     * @return true, если обновление успешно
+     */
+    public synchronized boolean update(Worker worker, User user) {
+        try {
+            if (databaseManager.updateWorker(worker, user)) {
+                synchronized (collection) {
+                    collection.removeIf(w -> w.getId() == worker.getId());
+                    collection.add(worker);
+                }
+                return true;
+            }
+            return false;
+        } catch (SQLException e) {
+            System.err.println("Ошибка обновления работника: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Удаляет всех работников с заданной зарплатой
+     * @param salary Зарплата
+     * @param user Пользователь
+     * @return Количество удаленных элементов
+     */
+    public synchronized int removeBySalary(int salary, User user) {
+        try {
+            if (databaseManager.removeBySalary(salary, user)) {
+                synchronized (collection) {
+                    int count = (int) collection.stream()
+                            .filter(w -> w.getSalary().equals(salary) && w.getOwner().getLogin().equals(user.getLogin()))
+                            .count();
+                    collection.removeIf(w -> w.getSalary().equals(salary) && w.getOwner().getLogin().equals(user.getLogin()));
+                    return count;
+                }
+            }
+            return 0;
+        } catch (SQLException e) {
+            System.err.println("Ошибка удаления по зарплате: " + e.getMessage());
+            return 0;
+        }
+    }
+}// ===== ./src/models/Country.java =====
+package models;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Перечисление национальностей
+ */
+public enum Country implements Serializable {
+    SPAIN,
+    CHINA,
+    INDIA,
+    THAILAND;
+}// ===== ./src/models/Color.java =====
+package models;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Перечисление цветов волос
+ */
+public enum Color implements Serializable {
+    GREEN,
+    RED,
+    BLACK,
+    BLUE,
+    YELLOW;
+}// ===== ./src/models/Worker.java =====
+package models;
+
+import java.io.Serializable;
+import java.util.Date;
+
+/**@author Rianexi
+Класс работника, хранимого в коллекции
+ */
+public class Worker implements Comparable<Worker>, Serializable {
+    private static final long serialVersionUID = 1L;
+    private int id;
+    private String name;
+    private Coordinates coordinates;
+    private Date creationDate;
+    private Integer salary;
+    private Position position;
+    private Status status;
+    private Person person;
+    private User owner; // Пользователь, создавший объект
+
+    /**Конструктор для создания объекта Worker
+     @param id Уникальный идентификатор
+     @param name Имя работника
+     @param coordinates Координаты работника
+     @param creationDate Дата создания
+     @param salary Зарплата
+     @param position Должность
+     @param status Статус
+     @param person Личность работника
+     @param owner Пользователь, создавший объект
+     */
+    public Worker(int id, String name, Coordinates coordinates, Date creationDate, Integer salary,
+                  Position position, Status status, Person person, User owner) {
+        this.id = id;
+        this.name = name;
+        this.coordinates = coordinates;
+        this.creationDate = creationDate;
+        this.salary = salary;
+        this.position = position;
+        this.status = status;
+        this.person = person;
+        this.owner = owner;
+    }
+
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public Coordinates getCoordinates() { return coordinates; }
+    public void setCoordinates(Coordinates coordinates) { this.coordinates = coordinates; }
+    public Date getCreationDate() { return creationDate; }
+    public void setCreationDate(Date creationDate) { this.creationDate = creationDate; }
+    public Integer getSalary() { return salary; }
+    public void setSalary(Integer salary) { this.salary = salary; }
+    public Position getPosition() { return position; }
+    public void setPosition(Position position) { this.position = position; }
+    public Status getStatus() { return status; }
+    public void setStatus(Status status) { this.status = status; }
+    public Person getPerson() { return person; }
+    public void setPerson(Person person) { this.person = person; }
+    public User getOwner() { return owner; }
+    public void setOwner(User owner) { this.owner = owner; }
+
+    @Override
+    public int compareTo(Worker other) {
+        return Integer.compare(this.salary, other.salary);
+    }
+
+    /**Возвращает строковое представление объекта
+     @return Строковое представление объекта Worker
+     */
+    @Override
+    public String toString() {
+        return String.format("Worker{id=%d, name='%s', coordinates=%s, creationDate=%s, salary=%d, position=%s, status=%s, person=%s, owner=%s}",
+                id, name, coordinates, creationDate, salary, position, status, person, owner != null ? owner.getLogin() : "null");
+    }
+}// ===== ./src/models/Person.java =====
+package models;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Класс персональных данных
+ */
+public class Person implements Serializable, Comparable<Person> {
+    private static final long serialVersionUID = 1L;
+    private float weight;
+    private String passportID;
+    private Color hairColor;
+    private Country nationality;
+
+    /**Конструктор для создания объекта Person
+     @param weight Вес личности (> 0)
+     @param passportID Номер паспорта (может быть null)
+     @param hairColor Цвет волос (может быть null)
+     @param nationality Национальность (не null)
+     @throws IllegalArgumentException Если weight <= 0
+     */
+    public Person(float weight, String passportID, Color hairColor, Country nationality) {
+        if (weight <= 0) throw new IllegalArgumentException("weight должен быть больше 0");
+        this.weight = weight;
+        this.passportID = passportID;
+        this.hairColor = hairColor;
+        this.nationality = nationality;
+    }
+
+    public float getWeight() { return weight; }
+    public void setWeight(float weight) { this.weight = weight; }
+    public String getPassportID() { return passportID; }
+    public void setPassportID(String passportID) { this.passportID = passportID; }
+    public Color getHairColor() { return hairColor; }
+    public void setHairColor(Color hairColor) { this.hairColor = hairColor; }
+    public Country getNationality() { return nationality; }
+    public void setNationality(Country nationality) { this.nationality = nationality; }
+
+    @Override
+    public int compareTo(Person other) {
+        return Float.compare(this.weight, other.weight);
+    }
+
+    /**Возвращает строковое представление объекта
+     @return Строковое представление объекта Person
+     */
+    @Override
+    public String toString() {
+        return "Person{" +
+                "weight=" + weight +
+                ", passportID='" + passportID + '\'' +
+                ", hairColor=" + hairColor +
+                ", nationality=" + nationality +
+                '}';
+    }
+}// ===== ./src/models/User.java =====
+package models;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Класс пользователя
+ */
+public class User implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private final int id; // Добавлено поле id
+    private final String login;
+    private final String passwordHash;
+
+    public User(int id, String login, String passwordHash) {
+        this.id = id;
+        this.login = login;
+        this.passwordHash = passwordHash;
+    }
+
+    public User(String login, String passwordHash) {
+        this(0, login, passwordHash); // id=0 для случаев, когда ID еще не известен
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public String getLogin() {
+        return login;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    @Override
+    public String toString() {
+        return "User{id=" + id + ", login='" + login + "'}";
+    }
+}// ===== ./src/models/Coordinates.java =====
+package models;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Класс координат работника
+ */
+public class Coordinates implements Serializable {
+    private static final long serialVersionUID = 1L;
+    private float x;
+    private long y;
+
+    /**Конструктор для создания объекта Coordinates
+     @param x Координата X (> -817)
+     @param y Координата Y (> -166, не null)
+     @throws IllegalArgumentException Если x <= -817 или y <= -166 или y == null
+     */
+    public Coordinates(float x, Long y) {
+        if (x <= -817) throw new IllegalArgumentException("x должен быть больше -817");
+        if (y == null || y <= -166) throw new IllegalArgumentException("y должен быть больше -166 и не null");
+        this.x = x;
+        this.y = y;
+    }
+
+    public float getX() { return x; }
+    public Long getY() { return y; }
+
+    /**Возвращает строковое представление объекта
+     @return Строковое представление объекта Coordinates
+     */
+    @Override
+    public String toString() {
+        return String.format("Coordinates{x=%.1f, y=%d}", x, y);
+    }
+}// ===== ./src/models/Status.java =====
+package models;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Перечисление статусов работника
+ */
+public enum Status implements Serializable {
+    HIRED,
+    FIRED,
+    RECOMMENDED_FOR_PROMOTION,
+    REGULAR,
+    PROBATION;
+}// ===== ./src/models/Position.java =====
+package models;
+
+import java.io.Serializable;
+
+/**@author Rianexi
+Перечисление должностей
+ */
+public enum Position implements Serializable {
+    MANAGER,
+    HEAD_OF_DEPARTMENT,
+    POSITIONER;
+}// ===== ./src/client/ResponseHandler.java =====
+package client;
+
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Модуль обработки ответов от сервера
+ */
+public class ResponseHandler {
+    private final Console console;
+
+    public ResponseHandler(Console console) {
+        this.console = console;
+    }
+
+    public void handle(ExecutionResponse response) {
+        console.println(response.getMessage());
+    }
+}// ===== ./src/client/CommandReader.java =====
+package client;
+
+import commands.CommandWrapper;
+import models.User;
+import models.Worker;
+import utility.Console;
+import utility.ExecutionResponse;
+import utility.PasswordHasher;
+
+import java.io.IOException;
+
+/**@author Rianexi
+Модуль чтения и отправки команд
+ */
+public class CommandReader {
+    private final Console console;
+    private final ClientConnectionManager connectionManager;
+    private User currentUser;
+
+    public CommandReader(Console console, ClientConnectionManager connectionManager) {
+        this.console = console;
+        this.connectionManager = connectionManager;
+    }
+
+    public void start() {
+        console.println("\u001B[32mКлиент запущен. Введите 'login <username> <password>' или 'register <username> <password>' для начала работы.\u001B[0m");
+        while (true) {
+            try {
+                String input = console.readln();
+                if (input == null || input.trim().isEmpty()) continue;
+
+                String[] parts = input.trim().split("\\s+", 2);
+                String commandName = parts[0];
+                String[] args = parts.length > 1 ? parts[1].split("\\s+") : new String[0];
+
+                if (commandName.equals("login")) {
+                    if (args.length != 2) {
+                        console.println("\u001B[31mОшибка: login требует два аргумента (username password)\u001B[0m");
+                        continue;
+                    }
+                    String login = args[0];
+                    String password = args[1];
+                    CommandWrapper wrapper = new CommandWrapper("login", args, null, null);
+                    ExecutionResponse response = connectionManager.sendCommand(wrapper);
+                    if (response.isSuccess()) {
+                        String[] responseParts = response.getMessage().split("ID: ");
+                        int userId = Integer.parseInt(responseParts[1]);
+                        currentUser = new User(userId, login, PasswordHasher.hashPassword(password));
+                        console.println("\u001B[32m" + response.getMessage() + "\u001B[0m");
+                    } else {
+                        console.println("\u001B[31m" + response.getMessage() + "\u001B[0m");
+                    }
+                    continue;
+                }
+
+                if (commandName.equals("register")) {
+                    if (args.length != 2) {
+                        console.println("\u001B[31mОшибка: register требует два аргумента (username password)\u001B[0m");
+                        continue;
+                    }
+                    String login = args[0];
+                    String password = args[1];
+                    CommandWrapper wrapper = new CommandWrapper("register", args, null, null);
+                    ExecutionResponse response = connectionManager.sendCommand(wrapper);
+                    if (response.isSuccess()) {
+                        String[] responseParts = response.getMessage().split("ID: ");
+                        int userId = Integer.parseInt(responseParts[1]);
+                        currentUser = new User(userId, login, PasswordHasher.hashPassword(password));
+                        console.println("\u001B[32m" + response.getMessage() + "\u001B[0m");
+                    } else {
+                        console.println("\u001B[31m" + response.getMessage() + "\u001B[0m");
+                    }
+                    continue;
+                }
+
+                if (currentUser == null) {
+                    console.println("\u001B[31mОшибка: необходимо авторизоваться с помощью команды login\u001B[0m");
+                    continue;
+                }
+
+                Worker worker = null;
+                if (commandName.equals("add") || commandName.equals("add_if_max")) {
+                    console.println("Введите данные для работника:");
+                    worker = console.readWorker(0, currentUser);
+                } else if (commandName.equals("insert_at")) {
+                    if (args.length != 1) {
+                        console.println("\u001B[31mОшибка: insert_at требует один аргумент (index)\u001B[0m");
+                        continue;
+                    }
+                    try {
+                        int index = Integer.parseInt(args[0]);
+                        if (index < 0) {
+                            console.println("\u001B[31mОшибка: index должен быть неотрицательным\u001B[0m");
+                            continue;
+                        }
+                        console.println("Введите данные для работника:");
+                        worker = console.readWorker(0, currentUser);
+                    } catch (NumberFormatException e) {
+                        console.println("\u001B[31mОшибка: index должен быть числом\u001B[0m");
+                        continue;
+                    }
+                } else if (commandName.equals("update")) {
+                    if (args.length != 1) {
+                        console.println("\u001B[31mОшибка: update требует один аргумент (id)\u001B[0m");
+                        continue;
+                    }
+                    try {
+                        int id = Integer.parseInt(args[0]);
+                        if (id <= 0) {
+                            console.println("\u001B[31mОшибка: id должен быть положительным\u001B[0m");
+                            continue;
+                        }
+                        console.println("Введите новые данные для работника:");
+                        worker = console.readWorker(id, currentUser);
+                    } catch (NumberFormatException e) {
+                        console.println("\u001B[31mОшибка: id должен быть числом\u001B[0m");
+                        continue;
+                    }
+                }
+
+                CommandWrapper wrapper = new CommandWrapper(commandName, args, worker, currentUser);
+                ExecutionResponse response = connectionManager.sendCommand(wrapper);
+                console.println(response.getMessage());
+            } catch (IllegalArgumentException e) {
+                console.println("\u001B[31mОшибка: " + e.getMessage() + "\u001B[0m");
+            } catch (IOException e) {
+                console.println("\u001B[31mСервер недоступен: " + e.getMessage() + ". Попробуйте снова.\u001B[0m");
+            }
+        }
+    }
+}// ===== ./src/client/ClientConnectionManager.java =====
+package client;
+
+import utility.CommandSerializer;
+import utility.ExecutionResponse;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
+
+public class ClientConnectionManager {
+    private final String host;
+    private final int port;
+    private SocketChannel socketChannel;
+    private static final int BUFFER_SIZE = 1024 * 1024;
+
+    public ClientConnectionManager(String host, int port) throws IOException {
+        this.host = host;
+        this.port = port;
+        connect();
+    }
+
+    private void connect() throws IOException {
+        try {
+            socketChannel = SocketChannel.open();
+            socketChannel.configureBlocking(false);
+            socketChannel.connect(new InetSocketAddress(host, port));
+            while (!socketChannel.finishConnect()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Подключение прервано", e);
+                }
+            }
+        } catch (IOException e) {
+            throw new IOException("Не удалось подключиться к серверу: " + e.getMessage(), e);
+        }
+    }
+
+    public ExecutionResponse sendCommand(commands.CommandWrapper commandWrapper) throws IOException {
+        int retries = 3;
+        while (retries > 0) {
+            try {
+                if (!socketChannel.isConnected() || !socketChannel.isOpen()) {
+                    connect();
+                }
+                ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
+                byte[] serialized = CommandSerializer.serialize(commandWrapper);
+                buffer.put(serialized);
+                buffer.flip();
+                socketChannel.write(buffer);
+
+                buffer.clear();
+                int bytesRead = 0;
+                long startTime = System.currentTimeMillis();
+                while (bytesRead == 0 && System.currentTimeMillis() - startTime < 5000) {
+                    bytesRead = socketChannel.read(buffer);
+                    if (bytesRead == -1) {
+                        throw new IOException("Сервер закрыл соединение");
+                    }
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Чтение ответа прервано", e);
+                    }
+                }
+                if (bytesRead == 0) {
+                    throw new IOException("Тайм-аут ожидания ответа от сервера");
+                }
+
+                buffer.flip();
+                byte[] responseBytes = new byte[buffer.remaining()];
+                buffer.get(responseBytes);
+                return (ExecutionResponse) CommandSerializer.deserialize(responseBytes);
+            } catch (IOException e) {
+                retries--;
+                if (retries == 0) {
+                    throw new IOException("Ошибка связи с сервером: " + e.getMessage(), e);
+                }
+                try {
+                    socketChannel.close();
+                    connect();
+                    Thread.sleep(500);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Отправка прервана", ie);
+                }
+            } catch (ClassNotFoundException e) {
+                throw new IOException("Ошибка десериализации ответа: " + e.getMessage(), e);
+            }
+        }
+        throw new IOException("Не удалось отправить команду после нескольких попыток");
+    }
+
+    public void close() throws IOException {
+        if (socketChannel != null && socketChannel.isOpen()) {
+            socketChannel.close();
+        }
+    }
+}// ===== ./src/client/Client.java =====
+package client;
+
+import utility.Console;
+import utility.StandardConsole;
+import java.io.IOException;
+
+/**@author Rianexi
+Главный класс клиентского приложения
+ */
+public class Client {
+    private static final String SERVER_HOST = "localhost";
+    private static final int SERVER_PORT = 5555;
+
+    public static void main(String[] args) {
+        try {
+            Console console = new StandardConsole();
+            ClientConnectionManager connectionManager = new ClientConnectionManager(SERVER_HOST, SERVER_PORT);
+            CommandReader commandReader = new CommandReader(console, connectionManager);
+            commandReader.start();
+        } catch (IOException e) {
+            System.err.println("\u001B[31mНе удалось запустить клиент: " + e.getMessage() + "\u001B[0m");
+            System.exit(1);
+        }
+    }
+}// ===== ./src/server/CommandProcessor.java =====
+package server;
+
+import commands.Command;
+import commands.CommandWrapper;
+import managers.CollectionManager;
+import managers.CommandManager;
+import managers.UserManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
+/**@author Rianexi
+Модуль обработки команд
+ */
+public class CommandProcessor {
+    private final CollectionManager collectionManager;
+    private final UserManager userManager;
+    private final CommandManager commandManager;
+    private static final Logger LOGGER = Logger.getLogger(CommandProcessor.class.getName());
+
+    public CommandProcessor(CollectionManager collectionManager, UserManager userManager, Console console) {
+        this.collectionManager = collectionManager;
+        this.userManager = userManager;
+        this.commandManager = new CommandManager(collectionManager, console, userManager);
+    }
+
+    public ExecutionResponse process(CommandWrapper wrapper) {
+        try {
+            LOGGER.info("Обработка команды: " + wrapper.getCommandName());
+            String commandName = wrapper.getCommandName();
+
+            // Проверка авторизации
+            if (!commandName.equals("login") && !commandName.equals("register")) {
+                if (wrapper.getUser() == null) {
+                    return new ExecutionResponse(false, "Требуется авторизация для выполнения команды");
+                }
+            }
+
+            // Для команд, требующих Worker
+            if (commandName.equals("add") || commandName.equals("add_if_max") ||
+                    commandName.equals("insert_at") || commandName.equals("update") ||
+                    commandName.equals("remove_by_id") || commandName.equals("clear") ||
+                    commandName.equals("remove_all_by_salary")) {
+                Command command = commandManager.getCommands().get(commandName);
+                if (command != null) {
+                    // Убедимся, что у Worker установлен правильный владелец
+                    if (wrapper.getWorker() != null && wrapper.getUser() != null) {
+                        wrapper.getWorker().setOwner(wrapper.getUser());
+                    }
+                    return command.apply(wrapper);
+                }
+                return new ExecutionResponse(false, "Команда " + commandName + " не найдена");
+            }
+
+            // Для остальных команд
+            ExecutionResponse response = commandManager.execute(
+                    wrapper.getCommandName() + " " + String.join(" ", wrapper.getArguments()),
+                    wrapper.getUser());
+            if (response.isSuccess() && wrapper.getCommandName().equals("show")) {
+                LinkedList<models.Worker> sorted = new LinkedList<>(collectionManager.getCollection());
+                sorted.sort(Comparator.comparing(models.Worker::getName));
+                StringBuilder sb = new StringBuilder();
+                sorted.forEach(worker -> sb.append(worker).append("\n"));
+                return new ExecutionResponse(true, sb.length() > 0 ? sb.toString() : "Коллекция пуста!");
+            }
+            return response;
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Ошибка обработки команды: " + e.getMessage(), e);
+            return new ExecutionResponse(false, "Ошибка: " + e.getMessage());
+        }
+    }
+}// ===== ./src/server/ConnectionManager.java =====
+package server;
+
+import managers.CollectionManager;
+import managers.UserManager;
+import utility.Console;
+
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
+/**@author Rianexi
+Модуль приема подключений
+ */
+public class ConnectionManager {
+    private final int port;
+    private final CollectionManager collectionManager;
+    private final UserManager userManager;
+    private final Console console;
+    private static final Logger LOGGER = Logger.getLogger(ConnectionManager.class.getName());
+    private final ExecutorService readPool = Executors.newFixedThreadPool(10); // Пул для чтения запросов
+    private final ExecutorService processPool = Executors.newFixedThreadPool(10); // Пул для обработки запросов
+    private final ForkJoinPool sendPool = ForkJoinPool.commonPool(); // Пул для отправки ответов
+
+    public ConnectionManager(int port, CollectionManager collectionManager, UserManager userManager, Console console) {
+        this.port = port;
+        this.collectionManager = collectionManager;
+        this.userManager = userManager;
+        this.console = console;
+    }
+
+    public void start() throws IOException {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            LOGGER.info("Сервер ожидает подключений на порту " + port);
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                LOGGER.info("Новое подключение: " + clientSocket.getInetAddress());
+                readPool.submit(() -> handleClient(clientSocket));
+            }
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Ошибка сервера: " + e.getMessage(), e);
+            throw e;
+        } finally {
+            readPool.shutdown();
+            processPool.shutdown();
+            sendPool.shutdown();
+        }
+    }
+
+    private void handleClient(Socket clientSocket) {
+        try {
+            RequestReader requestReader = new RequestReader(clientSocket.getInputStream());
+            CommandProcessor commandProcessor = new CommandProcessor(collectionManager, userManager, console);
+            ResponseSender responseSender = new ResponseSender(clientSocket.getOutputStream());
+
+            while (true) {
+                try {
+                    commands.CommandWrapper request = requestReader.readRequest();
+                    LOGGER.info("Получен запрос: " + request.getCommandName());
+                    processPool.submit(() -> {
+                        utility.ExecutionResponse response = commandProcessor.process(request);
+                        sendPool.submit(() -> {
+                            try {
+                                responseSender.sendResponse(response);
+                                LOGGER.info("Ответ отправлен клиенту");
+                            } catch (IOException e) {
+                                LOGGER.log(Level.WARNING, "Ошибка отправки ответа: " + e.getMessage(), e);
+                            }
+                        });
+                    });
+                    if (request.getCommandName().equals("exit")) {
+                        LOGGER.info("Клиент отправил команду exit, закрываем соединение");
+                        break;
+                    }
+                } catch (IOException | ClassNotFoundException e) {
+                    LOGGER.log(Level.WARNING, "Ошибка обработки запроса или клиент отключился: " + e.getMessage(), e);
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Неожиданная ошибка при обработке клиента: " + e.getMessage(), e);
+        } finally {
+            try {
+                clientSocket.close();
+                LOGGER.info("Соединение с клиентом закрыто");
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Ошибка при закрытии соединения: " + e.getMessage(), e);
+            }
+        }
+    }
+}// ===== ./src/server/Server.java =====
+package server;
+
+import managers.CollectionManager;
+import managers.DatabaseManager;
+import managers.UserManager;
+import utility.Console;
+import utility.StandardConsole;
+
+import java.io.IOException;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
+/**@author Rianexi
+Главный класс серверного приложения
+ */
+public class Server {
+    private static final int PORT = 5555;
+    private static final Logger LOGGER = Logger.getLogger(Server.class.getName());
+
+    public static void main(String[] args) {
+        try {
+            LOGGER.info("Сервер запускается...");
+            Console console = new StandardConsole();
+            DatabaseManager databaseManager = new DatabaseManager();
+            UserManager userManager = new UserManager(databaseManager);
+            CollectionManager collectionManager = new CollectionManager(databaseManager);
+            ConnectionManager connectionManager = new ConnectionManager(PORT, collectionManager, userManager, console);
+            connectionManager.start();
+            LOGGER.info("Сервер успешно запущен на порту " + PORT);
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Не удалось запустить сервер: " + e.getMessage(), e);
+            System.exit(1);
+        }
+    }
+}// ===== ./src/server/ResponseSender.java =====
+package server;
+
+import utility.CommandSerializer;
+import utility.ExecutionResponse;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
+/**@author Rianexi
+Модуль отправки ответов клиенту
+ */
+public class ResponseSender {
+    private final OutputStream outputStream;
+    private static final Logger LOGGER = Logger.getLogger(ResponseSender.class.getName());
+
+    public ResponseSender(OutputStream outputStream) {
+        this.outputStream = outputStream;
+    }
+
+    public void sendResponse(ExecutionResponse response) throws IOException {
+        synchronized (outputStream) {
+            byte[] serialized = CommandSerializer.serialize(response);
+            outputStream.write(serialized);
+            outputStream.flush();
+            LOGGER.info("Ответ успешно отправлен");
+        }
+    }
+}// ===== ./src/server/RequestReader.java =====
+package server;
+
+import utility.CommandSerializer;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
+/**@author Rianexi
+Модуль чтения запросов от клиента
+ */
+public class RequestReader {
+    private final InputStream inputStream;
+    private static final Logger LOGGER = Logger.getLogger(RequestReader.class.getName());
+
+    public RequestReader(InputStream inputStream) {
+        this.inputStream = inputStream;
+    }
+
+    public commands.CommandWrapper readRequest() throws IOException, ClassNotFoundException {
+        byte[] buffer = new byte[1024 * 1024];
+        int bytesRead = inputStream.read(buffer);
+        if (bytesRead == -1) {
+            throw new IOException("Клиент закрыл соединение");
+        }
+        byte[] data = new byte[bytesRead];
+        System.arraycopy(buffer, 0, data, 0, bytesRead);
+        LOGGER.info("Запрос успешно прочитан");
+        return (commands.CommandWrapper) CommandSerializer.deserialize(data);
+    }
+}// ===== ./src/Main.java =====
+public class Main {
+    public static void main(String[] args) {
+        if (args.length != 1) {
+            System.err.println("\u001B[31mУкажите режим: 'client' или 'server'\u001B[0m");
+            System.exit(1);
+        }
+        try {
+            switch (args[0].toLowerCase()) {
+                case "client":
+                    client.Client.main(new String[]{});
+                    break;
+                case "server":
+                    server.Server.main(new String[]{});
+                    break;
+                default:
+                    System.err.println("\u001B[31mНеверный режим: выберите 'client' или 'server'\u001B[0m");
+                    System.exit(1);
+            }
+        } catch (Exception e) {
+            System.err.println("\u001B[31mОшибка запуска: " + e.getMessage() + "\u001B[0m");
+            System.exit(1);
+        }
+    }
+}// ===== ./src/commands/FilterContainsName.java =====
+package commands;
+
+import managers.CollectionManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для вывода элементов, имя которых содержит подстроку
+ */
+public class FilterContainsName extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public FilterContainsName(Console console, CollectionManager collectionManager) {
+        super("filter_contains_name", "вывести элементы, имя которых содержит подстроку");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+    /**
+     * Выполняет вывод элементов, имя которых содержит заданную подстроку
+     * @param arguments Аргументы команды (подстрока имени)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        if (arguments.length != 1) return new ExecutionResponse(false, "Требуется один аргумент: name");
+        String name = arguments[0];
+        StringBuilder sb = new StringBuilder();
+        collectionManager.getCollection().stream()
+                .filter(w -> w.getName().contains(name))
+                .forEach(w -> sb.append(w).append("\n"));
+        return new ExecutionResponse(true, sb.length() > 0 ? sb.toString() : "Ничего не найдено");
+    }
+}// ===== ./src/commands/Info.java =====
+package commands;
+
+import managers.CollectionManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для вывода информации о коллекции
+ */
+public class Info extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public Info(Console console, CollectionManager collectionManager) {
+        super("info", "вывести информацию о коллекции");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     * Выполняет вывод информации о коллекции
+     * @param arguments Аргументы команды (не используются)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        String info = String.format("Тип: LinkedList, Дата инициализации: %s, Количество элементов: %d",
+                collectionManager.getInitializationDate(), collectionManager.getCollection().size());
+        return new ExecutionResponse(true, info);
+    }
+}// ===== ./src/commands/Help.java =====
+package commands;
+
+import managers.CommandManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для вывода справки по доступным командам
+ */
+public class Help extends Command {
+    private final Console console;
+    private final CommandManager commandManager;
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param commandManager Менеджер команд для получения списка команд
+     */
+    public Help(Console console, CommandManager commandManager) {
+        super("help", "вывести справку по доступным командам");
+        this.console = console;
+        this.commandManager = commandManager;
+    }
+    /**
+     * Выполняет вывод справки по доступным командам
+     * @param arguments Аргументы команды (не используются)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        StringBuilder sb = new StringBuilder("Доступные команды:\n");
+        commandManager.getCommands().forEach((name, cmd) ->
+                sb.append(String.format("%s: %s%n", name, cmd.getDescription())));
+        return new ExecutionResponse(true, sb.toString());
+    }
+}// ===== ./src/commands/Command.java =====
+package commands;
+
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Базовый класс для всех команд
+ */
+public abstract class Command {
+    private final String name;
+    private final String description;
+
+    /**Конструктор для создания команды
+     @param name Название команды
+     @param description Описание команды
+     */
+    protected Command(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
+    /**
+     Выполняет команду с заданными аргументами
+     @param arguments Аргументы команды
+     @return Результат выполнения команды
+     */
+    public abstract ExecutionResponse apply(String[] arguments);
+
+    /**
+     Выполняет команду с заданным объектом CommandWrapper
+     @param wrapper Объект команды
+     @return Результат выполнения команды
+     */
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        return new ExecutionResponse(false, "Команда " + name + " не поддерживает выполнение с CommandWrapper");
+    }
+
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+}// ===== ./src/commands/Exit.java =====
+package commands;
+
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для завершения программы
+ */
+public class Exit extends Command {
+    private final Console console;
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     */
+    public Exit(Console console) {
+        super("exit", "завершить программу без сохранения");
+        this.console = console;
+    }
+    /**
+     * Выполняет завершение программы
+     * @param arguments Аргументы команды (не используются)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        console.println("До встречи!");
+        return new ExecutionResponse(true, "");
+    }
+}// ===== ./src/commands/Show.java =====
+package commands;
+
+import managers.CollectionManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для вывода всех элементов коллекции
+ */
+public class Show extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public Show(Console console, CollectionManager collectionManager) {
+        super("show", "вывести все элементы коллекции");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     * Выполняет вывод всех элементов коллекции
+     * @param arguments Аргументы команды (не используются)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        if (collectionManager.getCollection().isEmpty()) {
+            return new ExecutionResponse(true, "Коллекция пуста!");
+        }
+        StringBuilder sb = new StringBuilder();
+        collectionManager.getCollection().forEach(worker -> sb.append(worker).append("\n"));
+        return new ExecutionResponse(true, sb.toString());
+    }
+}// ===== ./src/commands/RemoveById.java =====
+package commands;
+
+import managers.CollectionManager;
+import models.Worker; // Добавленный импорт
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для удаления элемента по ID
+ */
+public class RemoveById extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public RemoveById(Console console, CollectionManager collectionManager) {
+        super("remove_by_id", "удалить элемент по заданному id");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     * Выполняет удаление элемента по заданному ID
+     * @param arguments Аргументы команды (ID работника)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        if (arguments.length != 1) return new ExecutionResponse(false, "Требуется один аргумент: id");
+        try {
+            int id = Integer.parseInt(arguments[0]);
+            if (collectionManager.getById(id) == null) return new ExecutionResponse(false, "Работник с id " + id + " не найден");
+            return new ExecutionResponse(false, "Команда remove_by_id должна вызываться с указанием пользователя");
+        } catch (NumberFormatException e) {
+            return new ExecutionResponse(false, "id должен быть числом");
+        }
+    }
+
+    /**
+     * Выполняет удаление элемента по заданному ID
+     * @param wrapper Объект команды с Worker и User
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        if (wrapper.getArguments().length != 1) {
+            return new ExecutionResponse(false, "Требуется один аргумент: id");
+        }
+        try {
+            int id = Integer.parseInt(wrapper.getArguments()[0]);
+            Worker worker = collectionManager.getById(id); // Строка 55, теперь должна работать
+            if (worker == null) {
+                return new ExecutionResponse(false, "Работник с id " + id + " не найден");
+            }
+            if (!worker.getOwner().getLogin().equals(wrapper.getUser().getLogin())) {
+                return new ExecutionResponse(false, "Вы не можете удалить работника, созданного другим пользователем");
+            }
+            if (collectionManager.removeById(id, wrapper.getUser())) {
+                return new ExecutionResponse(true, "Работник с id " + id + " удален!");
+            }
+            return new ExecutionResponse(false, "Ошибка удаления работника");
+        } catch (NumberFormatException e) {
+            return new ExecutionResponse(false, "id должен быть числом");
+        }
+    }
+}// ===== ./src/commands/Update.java =====
+package commands;
+
+import managers.CollectionManager;
+import models.Worker;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Команда для обновления элемента по ID
+ */
+public class Update extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**Конструктор команды
+     @param console Консоль для взаимодействия с пользователем
+     @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public Update(Console console, CollectionManager collectionManager) {
+        super("update", "обновить элемент по заданному id");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     Выполняет обновление элемента по заданному ID
+     @param arguments Аргументы команды
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        return new ExecutionResponse(false, "Команда update должна вызываться через клиент с объектом Worker");
+    }
+
+    /**
+     Выполняет обновление элемента по заданному ID
+     @param wrapper Объект команды с Worker
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        if (wrapper.getArguments().length != 1) {
+            return new ExecutionResponse(false, "Требуется один аргумент: id");
+        }
+        if (wrapper.getWorker() == null) {
+            return new ExecutionResponse(false, "Для команды update требуется объект Worker");
+        }
+        try {
+            int id = Integer.parseInt(wrapper.getArguments()[0]);
+            Worker oldWorker = collectionManager.getById(id);
+            if (oldWorker == null) {
+                return new ExecutionResponse(false, "Работник с id " + id + " не найден");
+            }
+            if (!oldWorker.getOwner().getLogin().equals(wrapper.getUser().getLogin())) {
+                return new ExecutionResponse(false, "Вы не можете обновить работника, созданного другим пользователем");
+            }
+            Worker newWorker = wrapper.getWorker();
+            newWorker.setId(id);
+            newWorker.setOwner(wrapper.getUser());
+            if (collectionManager.update(newWorker, wrapper.getUser())) {
+                return new ExecutionResponse(true, "Работник с id " + id + " обновлен!");
+            }
+            return new ExecutionResponse(false, "Ошибка обновления работника");
+        } catch (NumberFormatException e) {
+            return new ExecutionResponse(false, "id должен быть числом");
+        }
+    }
+}// ===== ./src/commands/Reorder.java =====
+package commands;
+
+import managers.CollectionManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+import java.util.Collections;
+
+/**
+ * @author Rianexi
+ * Команда для сортировки коллекции в обратном порядке
+ */
+public class Reorder extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public Reorder(Console console, CollectionManager collectionManager) {
+        super("reorder", "отсортировать коллекцию в обратном порядке");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+    /**
+     * Выполняет сортировку коллекции в обратном порядке
+     * @param arguments Аргументы команды (не используются)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        Collections.reverse(collectionManager.getCollection());
+        return new ExecutionResponse(true, "Коллекция перевернута!");
+    }
+}// ===== ./src/commands/CommandWrapper.java =====
+package commands;
+
+import models.User;
+import models.Worker;
+import java.io.Serializable;
+
+/**@author Rianexi
+Класс-обертка для команд и их аргументов
+ */
+public class CommandWrapper implements Serializable {
+    private final String commandName;
+    private final String[] arguments;
+    private final Worker worker;
+    private final User user;
+
+    public CommandWrapper(String commandName, String[] arguments, Worker worker, User user) {
+        if (commandName == null || commandName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Название команды не может быть пустым");
+        }
+        this.commandName = commandName;
+        this.arguments = arguments != null ? arguments : new String[0];
+        this.worker = worker;
+        this.user = user;
+    }
+
+    public String getCommandName() { return commandName; }
+    public String[] getArguments() { return arguments; }
+    public Worker getWorker() { return worker; }
+    public User getUser() { return user; }
+}// ===== ./src/commands/Clear.java =====
+package commands;
+
+import managers.CollectionManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для очистки коллекции
+ */
+public class Clear extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public Clear(Console console, CollectionManager collectionManager) {
+        super("clear", "очистить коллекцию");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     * Выполняет очистку коллекции
+     * @param arguments Аргументы команды (не используются)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        return new ExecutionResponse(false, "Команда clear должна вызываться с указанием пользователя");
+    }
+
+    /**
+     * Выполняет очистку коллекции для пользователя
+     * @param wrapper Объект команды с User
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        if (wrapper.getUser() == null) {
+            return new ExecutionResponse(false, "Требуется авторизация для выполнения команды");
+        }
+        int removed = collectionManager.clear(wrapper.getUser());
+        return new ExecutionResponse(true, "Удалено элементов: " + removed);
+    }
+}// ===== ./src/commands/ExecuteScript.java =====
+package commands;
+
+import managers.CommandManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**@author Rianexi
+Команда для выполнения скрипта из файла
+ */
+public class ExecuteScript extends Command {
+    private final Console console;
+    private final CommandManager commandManager;
+    private final Set<String> executedScripts = new HashSet<>();
+
+    /**Конструктор команды
+     @param console Консоль для взаимодействия с пользователем
+     @param commandManager Менеджер команд для выполнения команд из скрипта
+     */
+    public ExecuteScript(Console console, CommandManager commandManager) {
+        super("execute_script", "выполнить скрипт из файла");
+        this.console = console;
+        this.commandManager = commandManager;
+    }
+
+    /**
+     * Выполняет команды из указанного файла скрипта
+     * @param arguments Аргументы команды (путь к файлу)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        if (arguments.length != 1) {
+            return new ExecutionResponse(false, "Требуется один аргумент: путь к файлу");
+        }
+        String filePath = arguments[0];
+
+        if (executedScripts.contains(filePath)) {
+            return new ExecutionResponse(false, "Скрипт " + filePath + " уже выполняется (рекурсия запрещена)");
+        }
+
+        executedScripts.add(filePath);
+        List<String> output = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                // Исправленная строка: передаем текущего пользователя
+                ExecutionResponse response = commandManager.execute(line, commandManager.getCurrentUser());
+                output.add(response.getMessage());
+
+                if (!response.isSuccess()) {
+                    output.add("Прервано из-за ошибки в команде: " + line);
+                    break;
+                }
+            }
+            executedScripts.remove(filePath);
+            return new ExecutionResponse(true, String.join("\n", output));
+        } catch (IOException e) {
+            executedScripts.remove(filePath);
+            return new ExecutionResponse(false, "Ошибка чтения файла: " + e.getMessage());
+        }
+    }
+}// ===== ./src/commands/Register.java =====
+package commands;
+
+import managers.UserManager;
+import models.User;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Команда для регистрации нового пользователя
+ */
+public class Register extends Command {
+    private final Console console;
+    private final UserManager userManager;
+
+    public Register(Console console, UserManager userManager) {
+        super("register", "зарегистрировать нового пользователя");
+        this.console = console;
+        this.userManager = userManager;
+    }
+
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        if (arguments.length != 2) {
+            return new ExecutionResponse(false, "Требуется два аргумента: login password");
+        }
+        String login = arguments[0];
+        String password = arguments[1];
+        User user = userManager.registerUser(login, password);
+        if (user != null) {
+            return new ExecutionResponse(true, "Пользователь " + login + " успешно зарегистрирован. ID: " + user.getId());
+        }
+        return new ExecutionResponse(false, "Ошибка регистрации: пользователь уже существует или данные некорректны");
+    }
+}// ===== ./src/commands/FilterLessThanPerson.java =====
+package commands;
+
+import managers.CollectionManager;
+import models.User;
+import models.Worker;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Команда для вывода элементов, у которых поле person меньше указанного
+ */
+public class FilterLessThanPerson extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**Конструктор команды
+     @param console Консоль для взаимодействия с пользователем
+     @param collectionManager Менеджер коллекции
+     */
+    public FilterLessThanPerson(Console console, CollectionManager collectionManager) {
+        super("filter_less_than_person", "вывести элементы, значение поля person которых меньше заданного");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**Выполняет команду
+     @param arguments Аргументы команды (не используются)
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        return new ExecutionResponse(false, "Команда filter_less_than_person должна вызываться через CommandWrapper");
+    }
+
+    /**Выполняет команду с использованием CommandWrapper
+     @param wrapper Объект команды с Worker и User
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        try {
+            console.println("Введите данные для person, с которым будет производиться сравнение:");
+            // Исправленная строка 33: добавлен wrapper.getUser()
+            Worker worker = console.readWorker(0, wrapper.getUser());
+            if (worker.getPerson() == null) {
+                return new ExecutionResponse(false, "Person не задан, сравнение невозможно");
+            }
+
+            StringBuilder result = new StringBuilder();
+            synchronized (collectionManager.getCollection()) {
+                for (Worker w : collectionManager.getCollection()) {
+                    if (w.getPerson() != null && w.getPerson().compareTo(worker.getPerson()) < 0) {
+                        result.append(w.toString()).append("\n");
+                    }
+                }
+            }
+
+            if (result.length() == 0) {
+                return new ExecutionResponse(true, "Нет элементов с person меньше указанного");
+            }
+            return new ExecutionResponse(true, result.toString().trim());
+        } catch (IllegalArgumentException e) {
+            return new ExecutionResponse(false, "Ошибка ввода данных: " + e.getMessage());
+        }
+    }
+}// ===== ./src/commands/RemoveAllBySalary.java =====
+package commands;
+
+import managers.CollectionManager;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**
+ * @author Rianexi
+ * Команда для удаления всех элементов с заданной зарплатой
+ */
+public class RemoveAllBySalary extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**
+     * Конструктор команды
+     * @param console Консоль для взаимодействия с пользователем
+     * @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public RemoveAllBySalary(Console console, CollectionManager collectionManager) {
+        super("remove_all_by_salary", "удалить все элементы с заданной зарплатой");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     * Выполняет удаление всех элементов с заданной зарплатой
+     * @param arguments Аргументы команды (зарплата)
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        if (arguments.length != 1) return new ExecutionResponse(false, "Требуется один аргумент: salary");
+        try {
+            Integer.parseInt(arguments[0]);
+            return new ExecutionResponse(false, "Команда remove_all_by_salary должна вызываться с указанием пользователя");
+        } catch (NumberFormatException e) {
+            return new ExecutionResponse(false, "salary должен быть числом");
+        }
+    }
+
+    /**
+     * Выполняет удаление всех элементов с заданной зарплатой для пользователя
+     * @param wrapper Объект команды с User
+     * @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        if (wrapper.getArguments().length != 1) return new ExecutionResponse(false, "Требуется один аргумент: salary");
+        try {
+            int salary = Integer.parseInt(wrapper.getArguments()[0]);
+            int removed = collectionManager.removeBySalary(salary, wrapper.getUser());
+            return new ExecutionResponse(true, "Удалено элементов: " + removed);
+        } catch (NumberFormatException e) {
+            return new ExecutionResponse(false, "salary должен быть числом");
+        }
+    }
+}// ===== ./src/commands/Login.java =====
+package commands;
+
+import managers.UserManager;
+import models.User;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Команда для авторизации пользователя
+ */
+public class Login extends Command {
+    private final Console console;
+    private final UserManager userManager;
+
+    public Login(Console console, UserManager userManager) {
+        super("login", "авторизовать пользователя");
+        this.console = console;
+        this.userManager = userManager;
+    }
+
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        if (arguments.length != 2) {
+            return new ExecutionResponse(false, "Требуется два аргумента: login password");
+        }
+        String login = arguments[0];
+        String password = arguments[1];
+        User user = userManager.loginUser(login, password);
+        if (user != null) {
+            return new ExecutionResponse(true, "Пользователь " + login + " успешно авторизован. ID: " + user.getId());
+        }
+        return new ExecutionResponse(false, "Неверный логин или пароль");
+    }
+}// ===== ./src/commands/Add.java =====
+package commands;
+
+import managers.CollectionManager;
+import models.Worker;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Команда для добавления нового работника
+ */
+public class Add extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**Конструктор команды
+     @param console Консоль для взаимодействия с пользователем
+     @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public Add(Console console, CollectionManager collectionManager) {
+        super("add", "добавить новый элемент в коллекцию");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     Выполняет добавление нового работника в коллекцию
+     @param arguments Аргументы команды
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        return new ExecutionResponse(false, "Команда add должна вызываться через клиент с объектом Worker");
+    }
+
+    /**
+     Выполняет добавление нового работника из CommandWrapper
+     @param wrapper Объект команды с Worker
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        if (wrapper.getWorker() == null) {
+            return new ExecutionResponse(false, "Для команды add требуется объект Worker");
+        }
+        Worker worker = wrapper.getWorker();
+        if (collectionManager.add(worker, wrapper.getUser())) {
+            return new ExecutionResponse(true, "Работник добавлен! ID: " + worker.getId());
+        }
+        return new ExecutionResponse(false, "Ошибка добавления работника");
+    }
+}// ===== ./src/commands/AddIfMax.java =====
+package commands;
+
+import managers.CollectionManager;
+import models.Worker;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Команда для добавления элемента, если он больше максимального
+ */
+public class AddIfMax extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**Конструктор команды
+     @param console Консоль для взаимодействия с пользователем
+     @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public AddIfMax(Console console, CollectionManager collectionManager) {
+        super("add_if_max", "добавить элемент, если он больше максимального");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     Выполняет добавление элемента, если он больше максимального
+     @param arguments Аргументы команды
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        return new ExecutionResponse(false, "Команда add_if_max должна вызываться через клиент с объектом Worker");
+    }
+
+    /**
+     Выполняет добавление элемента, если он больше максимального
+     @param wrapper Объект команды с Worker
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        if (wrapper.getWorker() == null) {
+            return new ExecutionResponse(false, "Для команды add_if_max требуется объект Worker");
+        }
+        Worker worker = wrapper.getWorker();
+        synchronized (collectionManager.getCollection()) {
+            if (collectionManager.getCollection().isEmpty() ||
+                    worker.compareTo(collectionManager.getCollection().stream().max(Worker::compareTo).get()) > 0) {
+                if (collectionManager.add(worker, wrapper.getUser())) {
+                    return new ExecutionResponse(true, "Работник добавлен как максимальный! ID: " + worker.getId());
+                }
+                return new ExecutionResponse(false, "Ошибка добавления работника");
+            }
+            return new ExecutionResponse(false, "Работник не больше максимального, добавление отменено");
+        }
+    }
+}// ===== ./src/commands/InsertAt.java =====
+package commands;
+
+import managers.CollectionManager;
+import models.Worker;
+import utility.Console;
+import utility.ExecutionResponse;
+
+/**@author Rianexi
+Команда для вставки элемента на заданную позицию
+ */
+public class InsertAt extends Command {
+    private final Console console;
+    private final CollectionManager collectionManager;
+
+    /**Конструктор команды
+     @param console Консоль для взаимодействия с пользователем
+     @param collectionManager Менеджер коллекции для выполнения команды
+     */
+    public InsertAt(Console console, CollectionManager collectionManager) {
+        super("insert_at", "добавить элемент на заданную позицию");
+        this.console = console;
+        this.collectionManager = collectionManager;
+    }
+
+    /**
+     Выполняет вставку элемента на заданную позицию
+     @param arguments Аргументы команды
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(String[] arguments) {
+        return new ExecutionResponse(false, "Команда insert_at должна вызываться через клиент с объектом Worker");
+    }
+
+    /**
+     Выполняет вставку элемента на заданную позицию
+     @param wrapper Объект команды с Worker
+     @return Результат выполнения команды
+     */
+    @Override
+    public ExecutionResponse apply(CommandWrapper wrapper) {
+        if (wrapper.getArguments().length != 1) {
+            return new ExecutionResponse(false, "Требуется один аргумент: index");
+        }
+        if (wrapper.getWorker() == null) {
+            return new ExecutionResponse(false, "Для команды insert_at требуется объект Worker");
+        }
+        try {
+            int index = Integer.parseInt(wrapper.getArguments()[0]);
+            if (index < 0 || index > collectionManager.getCollection().size()) {
+                return new ExecutionResponse(false, "Индекс вне диапазона");
+            }
+            Worker worker = wrapper.getWorker();
+            if (collectionManager.add(worker, wrapper.getUser())) {
+                synchronized (collectionManager.getCollection()) {
+                    collectionManager.getCollection().add(index, worker);
+                }
+                return new ExecutionResponse(true, "Работник добавлен на позицию " + index + "! ID: " + worker.getId());
+            }
+            return new ExecutionResponse(false, "Ошибка добавления работника");
+        } catch (NumberFormatException e) {
+            return new ExecutionResponse(false, "index должен быть числом");
+        }
+    }
+}
